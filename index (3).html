@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>H1 2026 Conference Budget Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:#0b0b0b; --card:#141414; --card2:#1c1c1c;
+  --border:rgba(255,255,255,0.07); --border2:rgba(255,255,255,0.04);
+  --gold:#eeaf00; --gold-d:rgba(238,175,0,0.1); --gold-b:rgba(238,175,0,0.22);
+  --green:#22c55e; --red:#ef4444;
+  --text:#efefef; --t2:#9a9a9a; --t3:#555; --lbl:#5a5a5a;
+}
+body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; font-size:13px; line-height:1.5; }
+
+/* LOADING */
+.loading-screen {
+  position:fixed; inset:0; background:var(--bg);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  z-index:999; transition:opacity 0.4s;
+}
+.loading-screen.hidden { opacity:0; pointer-events:none; }
+.loading-logo { font-size:11px; font-weight:700; letter-spacing:0.2em; text-transform:uppercase; color:var(--gold); margin-bottom:24px; }
+.loading-bar-bg { width:200px; height:2px; background:rgba(255,255,255,0.06); border-radius:2px; overflow:hidden; }
+.loading-bar-fill { height:100%; background:var(--gold); border-radius:2px; animation:loadbar 1.2s ease-in-out infinite; }
+@keyframes loadbar { 0%{width:0%} 60%{width:80%} 100%{width:100%} }
+.loading-text { font-size:10px; color:var(--t3); margin-top:12px; letter-spacing:0.1em; }
+
+/* NAV */
+.nav { display:flex; align-items:center; gap:0; border-bottom:1px solid var(--border); padding:0 36px; position:sticky; top:0; z-index:100; background:rgba(11,11,11,0.95); backdrop-filter:blur(8px); }
+.nav-brand { font-size:11px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:var(--gold); padding:16px 0; margin-right:36px; }
+.nav-tab { font-size:11px; font-weight:500; letter-spacing:0.06em; color:var(--t3); padding:16px 16px; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; transition:color 0.15s,border-color 0.15s; text-transform:uppercase; }
+.nav-tab:hover { color:var(--t2); }
+.nav-tab.active { color:var(--gold); border-bottom-color:var(--gold); }
+.nav-right { margin-left:auto; display:flex; align-items:center; gap:10px; }
+.sync-btn { font-size:9px; font-weight:600; letter-spacing:0.12em; text-transform:uppercase; color:var(--t3); background:none; border:1px solid var(--border); padding:5px 12px; border-radius:4px; cursor:pointer; transition:all 0.15s; }
+.sync-btn:hover { border-color:var(--gold-b); color:var(--gold); }
+.sync-btn.syncing { color:var(--gold); border-color:var(--gold-b); }
+.last-sync { font-size:9px; color:var(--t3); letter-spacing:0.06em; }
+
+/* PAGES */
+.page { display:none; padding:36px 36px 60px; }
+.page.active { display:block; }
+
+/* SHARED */
+.eyebrow { font-size:9px; font-weight:600; letter-spacing:0.2em; text-transform:uppercase; color:var(--lbl); margin-bottom:7px; }
+.h1 { font-size:22px; font-weight:700; letter-spacing:-0.3px; color:var(--text); line-height:1.1; }
+.h1 em { color:var(--gold); font-style:normal; }
+.meta { font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:var(--t3); margin-top:6px; }
+.card { background:var(--card); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+.ch { padding:12px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+.ch-lbl { font-size:9px; font-weight:600; letter-spacing:0.18em; text-transform:uppercase; color:var(--lbl); }
+.ch-title { font-size:12px; font-weight:600; color:var(--text); margin-top:1px; }
+.pill { font-size:9px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--gold); background:var(--gold-d); border:1px solid var(--gold-b); padding:3px 9px; border-radius:20px; }
+
+/* KPI */
+.kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:18px; }
+.kpi { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:17px 20px 15px; }
+.kpi-lbl { font-size:9px; font-weight:600; letter-spacing:0.18em; text-transform:uppercase; color:var(--lbl); margin-bottom:7px; }
+.kpi-val { font-size:25px; font-weight:700; letter-spacing:-0.8px; line-height:1; color:var(--gold); }
+.kpi-val.w { color:var(--text); }
+.kpi-sub { font-size:10px; color:var(--t3); margin-top:5px; }
+
+/* LAYOUT */
+.layout { display:grid; grid-template-columns:1fr 290px; gap:14px; margin-bottom:14px; }
+.rc { display:flex; flex-direction:column; gap:12px; }
+.br { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+
+/* TABLE */
+table { width:100%; border-collapse:collapse; }
+thead th { font-size:9px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--lbl); padding:9px 18px; text-align:left; border-bottom:1px solid var(--border); white-space:nowrap; }
+thead th.r { text-align:right; }
+tbody tr { border-bottom:1px solid var(--border2); transition:background 0.1s; }
+tbody tr:last-child { border-bottom:none; }
+tbody tr:hover { background:rgba(255,255,255,0.022); }
+td { padding:10px 18px; vertical-align:middle; }
+td.nm { font-weight:600; color:var(--text); font-size:12.5px; }
+td.lc { font-size:10.5px; color:var(--t3); }
+td.at { font-size:10.5px; color:var(--t2); }
+td.bu { text-align:right; color:var(--gold); font-weight:600; font-size:12px; white-space:nowrap; }
+td.ac { text-align:right; color:var(--green); font-weight:600; font-size:12px; white-space:nowrap; }
+td.st { text-align:right; }
+.sdot { display:inline-flex; align-items:center; gap:5px; font-size:9px; font-weight:500; letter-spacing:0.08em; text-transform:uppercase; color:var(--t3); }
+.sdot::before { content:''; width:5px; height:5px; border-radius:50%; background:var(--gold-b); flex-shrink:0; }
+.sdot.completed { color:var(--green); }
+.sdot.completed::before { background:var(--green); }
+.bw { display:flex; align-items:center; gap:7px; justify-content:flex-end; }
+.bb { width:54px; height:2px; background:rgba(255,255,255,0.05); border-radius:2px; overflow:hidden; flex-shrink:0; }
+.bf { height:100%; border-radius:2px; background:var(--gold); }
+
+/* PERSON LIST */
+.pr { display:flex; align-items:center; gap:11px; padding:10px 16px; border-bottom:1px solid var(--border2); transition:background 0.1s; cursor:pointer; }
+.pr:last-child { border-bottom:none; }
+.pr:hover { background:rgba(238,175,0,0.04); }
+.pr:hover .pn { color:var(--gold); }
+.av { width:28px; height:28px; border-radius:5px; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; flex-shrink:0; background:var(--gold-d); color:var(--gold); border:1px solid var(--gold-b); }
+.pi { flex:1; min-width:0; }
+.pn { font-size:12px; font-weight:600; color:var(--text); transition:color 0.15s; }
+.pc { font-size:10px; color:var(--t3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pa { font-size:11.5px; font-weight:600; color:var(--t2); white-space:nowrap; }
+.pr-arrow { font-size:10px; color:var(--t3); flex-shrink:0; }
+
+/* Q SPLIT */
+.qs { display:grid; grid-template-columns:1fr 1fr; }
+.qc { padding:14px 16px; }
+.qc:first-child { border-right:1px solid var(--border); }
+.ql { font-size:9px; font-weight:600; letter-spacing:0.18em; text-transform:uppercase; color:var(--lbl); margin-bottom:5px; }
+.qv { font-size:18px; font-weight:700; letter-spacing:-0.3px; color:var(--gold); }
+.qs2 { font-size:10px; color:var(--t3); margin-top:3px; }
+
+/* CATEGORY BARS */
+.catlist { padding:16px 18px; display:flex; flex-direction:column; gap:14px; }
+.crt { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; }
+.cn { font-size:12px; font-weight:500; color:var(--text); }
+.cp { font-size:10px; color:var(--gold); font-weight:600; }
+.ca { font-size:10px; color:var(--t3); }
+.cbb { width:100%; height:2px; background:rgba(255,255,255,0.05); border-radius:2px; overflow:hidden; }
+.cbf { height:100%; border-radius:2px; background:var(--gold); }
+
+/* EMPTY / ACTUALS */
+.empty { padding:36px 20px; text-align:center; }
+.ei { font-size:20px; margin-bottom:10px; opacity:0.25; }
+.et { font-size:12px; font-weight:600; color:var(--t2); margin-bottom:5px; }
+.eb { font-size:10.5px; color:var(--t3); line-height:1.8; }
+.eb strong { color:var(--gold); font-weight:500; }
+
+/* ACTUALS TABLE */
+.actuals-row { display:grid; grid-template-columns:1fr 110px 110px 100px; gap:0; border-bottom:1px solid var(--border2); align-items:center; }
+.actuals-row:last-child { border-bottom:none; }
+.actuals-row > div { padding:9px 18px; font-size:12px; }
+.actuals-row .ar-name { font-weight:600; color:var(--text); }
+.actuals-row .ar-bud { color:var(--gold); font-weight:600; text-align:right; }
+.actuals-row .ar-act { color:var(--green); font-weight:600; text-align:right; }
+.actuals-row .ar-var { text-align:right; font-weight:600; }
+.ar-var.over { color:var(--red); }
+.ar-var.under { color:var(--green); }
+.ar-var.none { color:var(--t3); }
+
+/* PEOPLE PAGE */
+.people-layout { display:grid; grid-template-columns:220px 1fr; gap:20px; }
+.people-sidebar { display:flex; flex-direction:column; gap:8px; }
+.person-card { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; cursor:pointer; transition:border-color 0.15s,background 0.15s; display:flex; align-items:center; gap:12px; }
+.person-card:hover { border-color:var(--gold-b); background:rgba(238,175,0,0.03); }
+.person-card.active { border-color:var(--gold); background:var(--gold-d); }
+.person-card .av-lg { width:38px; height:38px; border-radius:8px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; background:var(--gold-d); color:var(--gold); border:1px solid var(--gold-b); }
+.person-card.active .av-lg { background:rgba(238,175,0,0.2); }
+.pc-info { min-width:0; }
+.pc-name { font-size:13px; font-weight:600; color:var(--text); }
+.pc-base { font-size:10px; color:var(--t3); margin-top:1px; }
+.pc-total { font-size:11px; font-weight:600; color:var(--gold); margin-top:2px; }
+.profile-panel { display:flex; flex-direction:column; gap:16px; }
+.profile-header { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:24px 28px; display:flex; align-items:center; gap:24px; }
+.profile-avatar { width:64px; height:64px; border-radius:12px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:700; background:var(--gold-d); color:var(--gold); border:2px solid var(--gold-b); }
+.profile-info { flex:1; }
+.profile-name { font-size:22px; font-weight:700; color:var(--text); letter-spacing:-0.3px; }
+.profile-base { font-size:11px; color:var(--t2); margin-top:3px; display:flex; align-items:center; gap:6px; }
+.profile-base .dot { width:4px; height:4px; border-radius:50%; background:var(--t3); }
+.profile-stats { display:flex; gap:32px; margin-top:14px; }
+.ps-val { font-size:20px; font-weight:700; color:var(--gold); letter-spacing:-0.5px; }
+.ps-lbl { font-size:9px; font-weight:600; letter-spacing:0.15em; text-transform:uppercase; color:var(--lbl); margin-top:1px; }
+.conf-breakdown { display:flex; flex-direction:column; gap:10px; }
+.conf-item { background:var(--card); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+.conf-item-header { padding:14px 20px; display:flex; align-items:center; gap:16px; cursor:pointer; transition:background 0.1s; user-select:none; }
+.conf-item-header:hover { background:rgba(255,255,255,0.02); }
+.conf-item.open .conf-item-header { border-bottom:1px solid var(--border); }
+.cih-left { flex:1; display:flex; align-items:center; gap:14px; }
+.cih-name { font-size:13px; font-weight:600; color:var(--text); }
+.cih-loc { font-size:10px; color:var(--t3); margin-top:1px; }
+.cih-badge { font-size:9px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; padding:3px 8px; border-radius:4px; background:rgba(238,175,0,0.08); color:var(--gold); border:1px solid var(--gold-b); }
+.cih-budget { font-size:14px; font-weight:700; color:var(--gold); white-space:nowrap; }
+.cih-arrow { font-size:10px; color:var(--t3); margin-left:12px; transition:transform 0.2s; }
+.conf-item.open .cih-arrow { transform:rotate(180deg); }
+.conf-cats { padding:16px 20px 18px; display:flex; flex-direction:column; gap:12px; }
+.cat-row { display:flex; align-items:center; gap:14px; }
+.cat-icon { font-size:14px; width:24px; text-align:center; flex-shrink:0; }
+.cat-info { flex:1; }
+.cat-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; }
+.cat-name-sm { font-size:11.5px; font-weight:500; color:var(--text); }
+.cat-amounts { display:flex; align-items:center; gap:8px; }
+.cat-budget-amt { font-size:11px; font-weight:600; color:var(--gold); }
+.cat-actual-amt { font-size:11px; font-weight:600; color:var(--green); }
+.cat-actual-amt.none { color:var(--t3); }
+.cat-bar-bg { width:100%; height:3px; background:rgba(255,255,255,0.05); border-radius:2px; overflow:hidden; }
+.cat-bar-fill { height:100%; border-radius:2px; }
+.conf-total-row { display:flex; justify-content:space-between; align-items:center; padding:10px 20px 14px; border-top:1px solid var(--border); margin-top:4px; }
+.ctl { font-size:9px; font-weight:600; letter-spacing:0.15em; text-transform:uppercase; color:var(--lbl); }
+.ctv { font-size:13px; font-weight:700; color:var(--gold); }
+
+/* Conference row drill-down */
+tbody tr.conf-row { cursor:pointer; }
+tbody tr.conf-row:hover td.nm { color:var(--gold); }
+tbody tr.conf-row.open { background:rgba(238,175,0,0.04); }
+tbody tr.conf-row.open td.nm { color:var(--gold); }
+tr.conf-drill td { padding:0; background:var(--card2); border-bottom:1px solid var(--border); }
+tr.conf-drill .drill-inner { padding:20px 24px; display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+.drill-section-title { font-size:9px; font-weight:600; letter-spacing:0.18em; text-transform:uppercase; color:var(--lbl); margin-bottom:12px; }
+.drill-person { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border2); }
+.drill-person:last-child { border-bottom:none; }
+.drill-person-av { width:26px; height:26px; border-radius:5px; display:flex; align-items:center; justify-content:center; font-size:8px; font-weight:700; background:var(--gold-d); color:var(--gold); border:1px solid var(--gold-b); flex-shrink:0; }
+.drill-person-name { flex:1; font-size:12px; font-weight:600; color:var(--text); }
+.drill-person-amt { font-size:12px; font-weight:600; color:var(--gold); }
+.drill-person-base { font-size:10px; color:var(--t3); }
+.drill-cat { display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid var(--border2); }
+.drill-cat:last-child { border-bottom:none; }
+.drill-cat-icon { font-size:13px; width:20px; text-align:center; flex-shrink:0; }
+.drill-cat-name { flex:1; font-size:11.5px; color:var(--text); }
+.drill-cat-bar-wrap { width:80px; height:2px; background:rgba(255,255,255,0.05); border-radius:2px; overflow:hidden; }
+.drill-cat-bar { height:100%; border-radius:2px; }
+.drill-cat-amt { font-size:11.5px; font-weight:600; color:var(--gold); min-width:60px; text-align:right; }
+.drill-goto { display:inline-flex; align-items:center; gap:5px; font-size:9px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--gold); background:var(--gold-d); border:1px solid var(--gold-b); padding:5px 12px; border-radius:4px; cursor:pointer; margin-top:14px; transition:background 0.15s; }
+.drill-goto:hover { background:rgba(238,175,0,0.18); }
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="loading-screen" id="loading">
+  <div class="loading-logo">H1 2026 · Conference Dashboard</div>
+  <div class="loading-bar-bg"><div class="loading-bar-fill"></div></div>
+  <div class="loading-text" id="loading-text">Fetching data from Google Sheets...</div>
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-brand">H1 2026</div>
+  <div class="nav-tab active" onclick="showPage('overview',this)">Overview</div>
+  <div class="nav-tab" onclick="showPage('people',this)">People</div>
+  <div class="nav-right">
+    <span class="last-sync" id="last-sync"></span>
+    <button class="sync-btn" onclick="loadData(true)" id="sync-btn">↻ Refresh</button>
+  </div>
+</nav>
+
+<!-- PAGE: OVERVIEW -->
+<div id="page-overview" class="page active">
+  <div style="margin-bottom:28px;">
+    <div class="eyebrow">H1 2026 · Conference Planning</div>
+    <div class="h1">Budget <em>Dashboard</em></div>
+    <div class="meta" id="overview-meta">Loading...</div>
+  </div>
+  <div class="kpi-row">
+    <div class="kpi"><div class="kpi-lbl">Total H1 Budget</div><div class="kpi-val" id="kpi-total">—</div><div class="kpi-sub">All conferences combined</div></div>
+    <div class="kpi"><div class="kpi-lbl">Conferences</div><div class="kpi-val w" id="kpi-conf">—</div><div class="kpi-sub" id="kpi-conf-sub">Loading...</div></div>
+    <div class="kpi"><div class="kpi-lbl">Attendees</div><div class="kpi-val w" id="kpi-att">—</div><div class="kpi-sub" id="kpi-att-sub">Loading...</div></div>
+    <div class="kpi"><div class="kpi-lbl">Avg Cost / Event</div><div class="kpi-val" id="kpi-avg">—</div><div class="kpi-sub">Across all conferences</div></div>
+  </div>
+  <div class="layout">
+    <div class="card">
+      <div class="ch">
+        <div><div class="ch-lbl">All Conferences</div><div class="ch-title">Spend by Event — Ranked by Budget</div></div>
+        <span class="pill" id="conf-pill">— events</span>
+      </div>
+      <table>
+        <thead><tr><th>Conference</th><th>Location</th><th>Attendees</th><th class="r">Budget</th><th class="r">Actual</th><th class="r">Status</th></tr></thead>
+        <tbody id="conf-table-body"></tbody>
+      </table>
+    </div>
+    <div class="rc">
+      <div class="card">
+        <div class="ch"><div><div class="ch-lbl">Budget by Person</div><div class="ch-title">Click to see profile →</div></div></div>
+        <div id="people-list"></div>
+      </div>
+      <div class="card">
+        <div class="ch"><div><div class="ch-lbl">Quarter Split</div><div class="ch-title">Q1 vs Q2 Budget</div></div></div>
+        <div class="qs">
+          <div class="qc"><div class="ql">Q1 2026</div><div class="qv" id="q1-total">—</div><div class="qs2" id="q1-pct">—</div></div>
+          <div class="qc"><div class="ql">Q2 2026</div><div class="qv" id="q2-total">—</div><div class="qs2" id="q2-pct">—</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="br">
+    <div class="card">
+      <div class="ch"><div><div class="ch-lbl">Spend Breakdown</div><div class="ch-title">Budget by Category</div></div></div>
+      <div class="catlist" id="cat-breakdown"></div>
+    </div>
+    <div class="card">
+      <div class="ch">
+        <div><div class="ch-lbl">Post-Event Tracking</div><div class="ch-title">Budget vs. Actual</div></div>
+        <span class="pill" id="actuals-pill">0 completed</span>
+      </div>
+      <div id="actuals-content"></div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: PEOPLE -->
+<div id="page-people" class="page">
+  <div style="margin-bottom:24px;">
+    <div class="eyebrow">Team</div>
+    <div class="h1">People <em>Profiles</em></div>
+    <div class="meta">Per-person budget breakdown · Click a conference to expand categories</div>
+  </div>
+  <div class="people-layout">
+    <div class="people-sidebar" id="people-sidebar"></div>
+    <div id="profile-panel" class="profile-panel"></div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────────────
+const SHEET_ID  = '1onIlhT4X2ghUxlpi7FXKFUTxiRb6D-RqY5PBMPF7yI4';
+const API_BASE  = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&headers=1&range=A4:Z500&sheet=`;
+
+const CAT_ICONS  = { 'Flights':'✈️','Hotel / Lodging':'🏨','Conference Ticket':'🎟️','Meals / Per Diem':'🍽️','Ground Transport':'🚕','Misc':'📦' };
+const CAT_COLORS = { 'Flights':'#5b8fff','Hotel / Lodging':'#a78bfa','Conference Ticket':'#eeaf00','Meals / Per Diem':'#22c55e','Ground Transport':'#fb923c','Misc':'#6b7280' };
+
+const PERSON_META = {
+  'Mostafa': { initials:'MO', base:'Dubai, UAE',      role:'CEO',           note:'Dubai-based — intercontinental flights to US conferences are factored in. European stops can be cost-efficient routing.' },
+  'Zach':    { initials:'ZA', base:'New York, NY',    role:'BD Lead',       note:'New York-based — domestic US conferences are lower cost; international conferences carry full transatlantic flight cost.' },
+  'Yacine':  { initials:'YA', base:'Paris, France',   role:'Strategy',      note:'Paris-based — European and Middle Eastern conferences are cost-efficient; transatlantic routes carry full flight premium.' },
+  'Alan':    { initials:'AL', base:'New York, NY',    role:'Finance',       note:'New York-based — domestic conference travel is highly cost-efficient; DAS in NYC has near-zero travel overhead.' },
+  'Moe':     { initials:'M2', base:'Miami, FL',       role:'Sales',         note:'Miami-based — zero flight cost for Miami conferences. Cyprus requires intercontinental travel.' },
+  'Matt':    { initials:'MT', base:'London, UK',      role:'Payments Lead', note:'London-based — UK and European conferences have no flight cost vs. US-based team members.' },
+  'Fred':    { initials:'FR', base:'London, UK',      role:'Payments',      note:'London-based — same conference roster as Matt with comparable costs. UK/EU events have no flight premium.' },
+};
+
+// ── STATE ─────────────────────────────────────────────────────────────────
+let DATA = { conferences: [], expenses: [] };
+let currentPerson = null;
+
+// ── FETCH ─────────────────────────────────────────────────────────────────
+function parseSheetJSON(raw) {
+  const json = JSON.parse(raw.replace(/^[^(]+\(/, '').replace(/\);?\s*$/, ''));
+  const cols = json.table.cols.map(c => c.label);
+  return json.table.rows
+    .filter(r => r && r.c && r.c[0] && r.c[0].v)
+    .map(r => {
+      const obj = {};
+      cols.forEach((col, i) => {
+        const cell = r.c[i];
+        obj[col] = cell ? (cell.v !== null && cell.v !== undefined ? cell.v : '') : '';
+      });
+      return obj;
+    });
+}
+
+async function fetchSheet(name) {
+  const url = API_BASE + encodeURIComponent(name);
+  const res  = await fetch(url);
+  const text = await res.text();
+  return parseSheetJSON(text);
+}
+
+async function loadData(manual = false) {
+  const btn = document.getElementById('sync-btn');
+  btn.classList.add('syncing');
+  btn.textContent = '↻ Syncing...';
+  try {
+    const [conferences, expenses] = await Promise.all([
+      fetchSheet('📋 Conferences'),
+      fetchSheet('💸 Expenses')
+    ]);
+    DATA.conferences = conferences.filter(c => { const n = (c['Conference Name'] || '').toString().trim().toUpperCase(); return n && n !== 'TOTALS' && n !== 'TOTAL'; });
+    DATA.expenses    = expenses;
+    renderAll();
+    const now = new Date();
+    document.getElementById('last-sync').textContent =
+      `Last sync: ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+    if (manual) {
+      btn.textContent = '✓ Done';
+      setTimeout(() => { btn.textContent = '↻ Refresh'; btn.classList.remove('syncing'); }, 1500);
+    } else {
+      btn.textContent = '↻ Refresh';
+      btn.classList.remove('syncing');
+    }
+  } catch(e) {
+    console.error(e);
+    btn.textContent = '⚠ Error';
+    btn.classList.remove('syncing');
+    setTimeout(() => { btn.textContent = '↻ Refresh'; }, 2000);
+  }
+  document.getElementById('loading').classList.add('hidden');
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────
+const fmt = n => n ? '$' + Math.round(n).toLocaleString() : '—';
+const pct = (a, b) => b ? Math.round(a / b * 100) + '%' : '—';
+
+function initials(name) {
+  return (PERSON_META[name] || {}).initials ||
+    name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2);
+}
+
+// ── RENDER ALL ────────────────────────────────────────────────────────────
+function renderAll() {
+  const confs    = DATA.conferences;
+  const expenses = DATA.expenses;
+
+  const totalBudget  = confs.reduce((s, c) => s + (Number(c['Total Budgeted']) || 0), 0);
+  const totalActual  = confs.reduce((s, c) => s + (Number(c['Total Actual'])   || 0), 0);
+  const confCount    = confs.length;
+  const attendeeSet  = new Set(expenses.map(e => e['Attendee']).filter(Boolean));
+  const attendees    = [...attendeeSet];
+
+  // KPIs
+  document.getElementById('kpi-total').textContent   = fmt(totalBudget);
+  document.getElementById('kpi-conf').textContent    = confCount;
+  document.getElementById('kpi-conf-sub').textContent= `Across Q1 + Q2 2026`;
+  document.getElementById('kpi-att').textContent     = attendees.length;
+  document.getElementById('kpi-att-sub').textContent = attendees.join(' · ');
+  document.getElementById('kpi-avg').textContent     = fmt(totalBudget / confCount);
+  document.getElementById('overview-meta').textContent =
+    `${confCount} Conferences · ${attendees.length} Attendees · All Figures Projected`;
+  document.getElementById('conf-pill').textContent   = `${confCount} events`;
+
+  // Quarter split
+  const q1 = confs.filter(c => c['Quarter'] === 'Q1').reduce((s,c) => s + (Number(c['Total Budgeted'])||0), 0);
+  const q2 = confs.filter(c => c['Quarter'] === 'Q2').reduce((s,c) => s + (Number(c['Total Budgeted'])||0), 0);
+  document.getElementById('q1-total').textContent = fmt(q1);
+  document.getElementById('q2-total').textContent = fmt(q2);
+  document.getElementById('q1-pct').textContent   = pct(q1, totalBudget) + ' of total';
+  document.getElementById('q2-pct').textContent   = pct(q2, totalBudget) + ' of total';
+
+  // Conference table with drill-down
+  const sorted = [...confs].sort((a,b) => (Number(b['Total Budgeted'])||0) - (Number(a['Total Budgeted'])||0));
+  const maxBud  = Number(sorted[0]['Total Budgeted']) || 1;
+  document.getElementById('conf-table-body').innerHTML = sorted.map((c, i) => {
+    const bud    = Number(c['Total Budgeted']) || 0;
+    const act    = Number(c['Total Actual'])   || 0;
+    const status = c['Status'] || 'Planning';
+    const barW   = Math.round(bud / maxBud * 100);
+    const statusCls = status === 'Completed' ? 'completed' : '';
+    const confName = c['Conference Name'];
+
+    // Per-person breakdown for this conference
+    const confExpenses = expenses.filter(e => e['Conference'] === confName);
+    const byPerson = {};
+    confExpenses.forEach(e => {
+      const att = e['Attendee'];
+      if (!att) return;
+      byPerson[att] = (byPerson[att] || 0) + (Number(e['Budgeted Amount']) || 0);
+    });
+    const byCat = {};
+    confExpenses.forEach(e => {
+      const cat = e['Category'];
+      if (!cat) return;
+      byCat[cat] = (byCat[cat] || 0) + (Number(e['Budgeted Amount']) || 0);
+    });
+    const maxCatAmt = Math.max(...Object.values(byCat), 1);
+
+    const personRows = Object.entries(byPerson).sort((a,b) => b[1]-a[1]).map(([name, amt]) => {
+      const meta = PERSON_META[name] || { initials: initials(name), base: '—' };
+      return `<div class="drill-person">
+        <div class="drill-person-av">${meta.initials}</div>
+        <div>
+          <div class="drill-person-name">${name}</div>
+          <div class="drill-person-base">📍 ${meta.base}</div>
+        </div>
+        <div style="flex:1"></div>
+        <div class="drill-person-amt">${fmt(amt)}</div>
+        <div style="margin-left:10px;cursor:pointer;font-size:9px;color:var(--t3)" onclick="goToPerson('${name}')">Profile →</div>
+      </div>`;
+    }).join('');
+
+    const catRows = Object.entries(byCat).sort((a,b) => b[1]-a[1]).map(([cat, amt]) => {
+      const barW2 = Math.round(amt / maxCatAmt * 100);
+      return `<div class="drill-cat">
+        <div class="drill-cat-icon">${CAT_ICONS[cat]||'📦'}</div>
+        <div class="drill-cat-name">${cat}</div>
+        <div class="drill-cat-bar-wrap"><div class="drill-cat-bar" style="width:${barW2}%;background:${CAT_COLORS[cat]||'#888'}"></div></div>
+        <div class="drill-cat-amt">${fmt(amt)}</div>
+      </div>`;
+    }).join('');
+
+    const drillHTML = `<tr class="conf-drill" id="drill-${i}" style="display:none">
+      <td colspan="6">
+        <div class="drill-inner">
+          <div>
+            <div class="drill-section-title">👥 Attending (${Object.keys(byPerson).length} people)</div>
+            ${personRows || '<div style="color:var(--t3);font-size:11px">No expense data yet</div>'}
+          </div>
+          <div>
+            <div class="drill-section-title">💰 Budget by Category</div>
+            ${catRows || '<div style="color:var(--t3);font-size:11px">No expense data yet</div>'}
+          </div>
+        </div>
+      </td>
+    </tr>`;
+
+    return `<tr class="conf-row" onclick="toggleConfRow(${i}, this)">
+      <td class="nm">${confName} <span style="font-size:9px;color:var(--t3);font-weight:400;margin-left:4px">▾</span></td>
+      <td class="lc">${c['Location'] || '—'}</td>
+      <td class="at">${c['Attendees'] || '—'}</td>
+      <td class="bu"><div class="bw"><div class="bb"><div class="bf" style="width:${barW}%"></div></div>${fmt(bud)}</div></td>
+      <td class="ac">${act ? fmt(act) : '<span style="color:var(--t3)">—</span>'}</td>
+      <td class="st"><span class="sdot ${statusCls}">${status}</span></td>
+    </tr>${drillHTML}`;
+  }).join('');
+
+  // People list (overview)
+  const personBudgets = {};
+  expenses.forEach(e => {
+    const att = e['Attendee'];
+    if (att) personBudgets[att] = (personBudgets[att] || 0) + (Number(e['Budgeted Amount']) || 0);
+  });
+  const sortedPeople = Object.entries(personBudgets).sort((a,b) => b[1] - a[1]);
+  document.getElementById('people-list').innerHTML = sortedPeople.map(([name, bud]) => {
+    const meta   = PERSON_META[name] || { initials: initials(name), base: '—' };
+    const evCount = new Set(expenses.filter(e => e['Attendee'] === name).map(e => e['Conference'])).size;
+    return `<div class="pr" onclick="goToPerson('${name}')">
+      <div class="av">${meta.initials}</div>
+      <div class="pi">
+        <div class="pn">${name}</div>
+        <div class="pc">${evCount} conference${evCount !== 1 ? 's' : ''} · ${meta.base}</div>
+      </div>
+      <div class="pa">${fmt(bud)}</div>
+      <div class="pr-arrow">›</div>
+    </div>`;
+  }).join('');
+
+  // Category breakdown
+  const catTotals = {};
+  expenses.forEach(e => {
+    const cat = e['Category'];
+    if (cat) catTotals[cat] = (catTotals[cat] || 0) + (Number(e['Budgeted Amount']) || 0);
+  });
+  const catMax = Math.max(...Object.values(catTotals));
+  document.getElementById('cat-breakdown').innerHTML = Object.entries(catTotals)
+    .sort((a,b) => b[1] - a[1])
+    .map(([cat, amt]) => `
+      <div>
+        <div class="crt"><span class="cn">${cat}</span><span class="cp">${pct(amt, totalBudget)}</span></div>
+        <div class="ca" style="margin-bottom:5px">${fmt(amt)}</div>
+        <div class="cbb"><div class="cbf" style="width:${Math.round(amt/catMax*100)}%"></div></div>
+      </div>`).join('');
+
+  // Actuals
+  const completed = confs.filter(c => Number(c['Total Actual']) > 0);
+  document.getElementById('actuals-pill').textContent = `${completed.length} completed`;
+  if (completed.length === 0) {
+    document.getElementById('actuals-content').innerHTML = `
+      <div class="empty">
+        <div class="ei">◎</div>
+        <div class="et">No actuals recorded yet</div>
+        <div class="eb">After each conference, fill in<br><strong>Total Actual</strong> in your Google Sheet →<br>this dashboard updates automatically on refresh.</div>
+      </div>`;
+  } else {
+    const actHeader = `<div class="actuals-row" style="border-bottom:1px solid var(--border)">
+      <div style="font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--lbl)">Conference</div>
+      <div style="font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--lbl);text-align:right">Budget</div>
+      <div style="font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--lbl);text-align:right">Actual</div>
+      <div style="font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--lbl);text-align:right">Variance</div>
+    </div>`;
+    const actRows = completed.map(c => {
+      const bud = Number(c['Total Budgeted']) || 0;
+      const act = Number(c['Total Actual'])   || 0;
+      const v   = act - bud;
+      const vcls = v > 0 ? 'over' : v < 0 ? 'under' : 'none';
+      const vsign = v > 0 ? '+' : '';
+      return `<div class="actuals-row">
+        <div class="ar-name">${c['Conference Name']}</div>
+        <div class="ar-bud">${fmt(bud)}</div>
+        <div class="ar-act">${fmt(act)}</div>
+        <div class="ar-var ${vcls}">${v !== 0 ? vsign + fmt(Math.abs(v)) : '—'}</div>
+      </div>`;
+    }).join('');
+    document.getElementById('actuals-content').innerHTML = actHeader + actRows;
+  }
+
+  // People page
+  if (!currentPerson && sortedPeople.length) currentPerson = sortedPeople[0][0];
+  renderPeoplePage();
+}
+
+// ── PEOPLE PAGE ───────────────────────────────────────────────────────────
+function renderPeoplePage() {
+  const expenses = DATA.expenses;
+  const personBudgets = {};
+  expenses.forEach(e => {
+    const att = e['Attendee'];
+    if (att) personBudgets[att] = (personBudgets[att] || 0) + (Number(e['Budgeted Amount']) || 0);
+  });
+  const sortedPeople = Object.entries(personBudgets).sort((a,b) => b[1] - a[1]);
+
+  // Sidebar
+  document.getElementById('people-sidebar').innerHTML = sortedPeople.map(([name, bud]) => {
+    const meta = PERSON_META[name] || { initials: initials(name), base: '—' };
+    const active = name === currentPerson ? 'active' : '';
+    return `<div class="person-card ${active}" onclick="selectPerson('${name}')">
+      <div class="av-lg">${meta.initials}</div>
+      <div class="pc-info">
+        <div class="pc-name">${name}</div>
+        <div class="pc-base">📍 ${meta.base}</div>
+        <div class="pc-total">${fmt(bud)}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  renderProfile();
+}
+
+function renderProfile() {
+  if (!currentPerson) return;
+  const expenses = DATA.expenses;
+  const meta     = PERSON_META[currentPerson] || { initials: initials(currentPerson), base: '—', role: '—', note: '' };
+  const myExp    = expenses.filter(e => e['Attendee'] === currentPerson);
+
+  // Group by conference
+  const byConf = {};
+  myExp.forEach(e => {
+    const conf = e['Conference'];
+    if (!conf) return;
+    if (!byConf[conf]) byConf[conf] = { cats: {}, loc: '', q: '' };
+    const cat = e['Category'];
+    if (cat) {
+      byConf[conf].cats[cat] = {
+        budget: (byConf[conf].cats[cat]?.budget || 0) + (Number(e['Budgeted Amount']) || 0),
+        actual: (byConf[conf].cats[cat]?.actual || 0) + (Number(e['Actual Amount'])   || 0),
+      };
+    }
+    byConf[conf].q = e['Quarter'] || byConf[conf].q;
+  });
+
+  // Match location from conferences sheet
+  DATA.conferences.forEach(c => {
+    const name = c['Conference Name'];
+    if (byConf[name]) byConf[name].loc = c['Location'] || '';
+  });
+
+  // Totals
+  const totalBudget = Object.values(byConf).reduce((s, ev) =>
+    s + Object.values(ev.cats).reduce((ss, c) => ss + c.budget, 0), 0);
+  const confCount   = Object.keys(byConf).length;
+  const flightTotal = Object.values(byConf).reduce((s, ev) =>
+    s + (ev.cats['Flights']?.budget || 0), 0);
+  const flightPct   = totalBudget ? Math.round(flightTotal / totalBudget * 100) : 0;
+
+  // Category totals across all events
+  const catTotals = {};
+  Object.values(byConf).forEach(ev => {
+    Object.entries(ev.cats).forEach(([cat, val]) => {
+      catTotals[cat] = (catTotals[cat] || 0) + val.budget;
+    });
+  });
+
+  // Sort conferences by budget desc
+  const sortedConfs = Object.entries(byConf).sort((a,b) => {
+    const ta = Object.values(a[1].cats).reduce((s,c)=>s+c.budget,0);
+    const tb = Object.values(b[1].cats).reduce((s,c)=>s+c.budget,0);
+    return tb - ta;
+  });
+
+  const confItems = sortedConfs.map(([confName, ev], i) => {
+    const evBudget = Object.values(ev.cats).reduce((s,c)=>s+c.budget, 0);
+    const maxCat   = Math.max(...Object.values(ev.cats).map(c=>c.budget));
+    const isLocal  = (ev.loc.includes('London') && meta.base.includes('London')) ||
+                     (ev.loc.includes('New York') && meta.base.includes('New York')) ||
+                     (ev.loc.includes('Miami') && meta.base.includes('Miami'));
+    const badge    = isLocal ? '<span class="cih-badge">Local</span>' : '';
+
+    const catRows = Object.entries(ev.cats)
+      .filter(([,v]) => v.budget > 0)
+      .sort((a,b) => b[1].budget - a[1].budget)
+      .map(([cat, val]) => {
+        const barW = Math.round(val.budget / maxCat * 100);
+        const catPct = Math.round(val.budget / evBudget * 100);
+        const actualHtml = val.actual
+          ? `<span class="cat-actual-amt">${fmt(val.actual)}</span>`
+          : `<span class="cat-actual-amt none">No actual</span>`;
+        return `<div class="cat-row">
+          <div class="cat-icon">${CAT_ICONS[cat]||'📦'}</div>
+          <div class="cat-info">
+            <div class="cat-top">
+              <span class="cat-name-sm">${cat}</span>
+              <div class="cat-amounts">
+                <span class="cat-budget-amt">${fmt(val.budget)}</span>
+                ${actualHtml}
+                <span style="font-size:9px;color:var(--t3)">${catPct}%</span>
+              </div>
+            </div>
+            <div class="cat-bar-bg">
+              <div class="cat-bar-fill" style="width:${barW}%;background:${CAT_COLORS[cat]||'#888'}"></div>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+
+    return `<div class="conf-item" id="ci-${i}">
+      <div class="conf-item-header" onclick="toggleConf('ci-${i}')">
+        <div class="cih-left">
+          <div>
+            <div class="cih-name">${confName} ${badge}</div>
+            <div class="cih-loc">${ev.loc || 'TBD'} · ${ev.q || ''}</div>
+          </div>
+        </div>
+        <div class="cih-budget">${fmt(evBudget)}</div>
+        <div class="cih-arrow">▾</div>
+      </div>
+      <div class="conf-cats" style="display:none">
+        ${catRows}
+        <div class="conf-total-row">
+          <span class="ctl">Conference Total</span>
+          <span class="ctv">${fmt(evBudget)}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Stacked bar
+  const stackedBar = Object.entries(catTotals).map(([cat, amt]) => {
+    const w = totalBudget ? amt / totalBudget * 100 : 0;
+    return `<div style="width:${w}%;background:${CAT_COLORS[cat]||'#888'}" title="${cat}: ${fmt(amt)}"></div>`;
+  }).join('');
+
+  // Legend
+  const legend = Object.entries(catTotals).map(([cat, amt]) => {
+    const p = totalBudget ? Math.round(amt/totalBudget*100) : 0;
+    return `<div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--t2)">
+      <span style="width:8px;height:8px;border-radius:2px;background:${CAT_COLORS[cat]||'#888'};display:inline-block;flex-shrink:0"></span>
+      ${cat}: <strong style="color:var(--text)">${fmt(amt)}</strong>
+      <span style="color:var(--t3)">(${p}%)</span>
+    </div>`;
+  }).join('');
+
+  document.getElementById('profile-panel').innerHTML = `
+    <div class="profile-header">
+      <div class="profile-avatar">${meta.initials}</div>
+      <div class="profile-info">
+        <div class="profile-name">${currentPerson}</div>
+        <div class="profile-base">
+          <span>📍 ${meta.base}</span>
+          <span class="dot"></span>
+          <span style="color:var(--lbl)">${meta.role}</span>
+        </div>
+        <div class="profile-stats">
+          <div class="ps"><div class="ps-val">${fmt(totalBudget)}</div><div class="ps-lbl">Total Budget</div></div>
+          <div class="ps"><div class="ps-val">${confCount}</div><div class="ps-lbl">Conferences</div></div>
+          <div class="ps"><div class="ps-val" style="color:${flightPct<20?'var(--green)':'var(--gold)'}">${fmt(flightTotal)}</div><div class="ps-lbl">Flights (${flightPct}%)</div></div>
+          <div class="ps"><div class="ps-val">${confCount ? fmt(Math.round(totalBudget/confCount)) : '—'}</div><div class="ps-lbl">Avg / Event</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="padding:14px 18px;">
+      <div style="font-size:9px;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;color:var(--lbl);margin-bottom:8px;">Spend context</div>
+      <div style="font-size:11.5px;color:var(--t2);line-height:1.7;">${meta.note}</div>
+      <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">${legend}</div>
+      <div style="margin-top:10px;display:flex;height:6px;border-radius:4px;overflow:hidden;gap:1px">${stackedBar}</div>
+    </div>
+    <div>
+      <div style="font-size:9px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:var(--lbl);margin-bottom:10px;">
+        Conference Breakdown — click any event to expand
+      </div>
+      <div class="conf-breakdown">${confItems}</div>
+    </div>`;
+}
+
+// ── INTERACTIONS ──────────────────────────────────────────────────────────
+function showPage(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  el.classList.add('active');
+}
+
+function goToPerson(name) {
+  currentPerson = name;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-people').classList.add('active');
+  document.querySelectorAll('.nav-tab')[1].classList.add('active');
+  renderPeoplePage();
+}
+
+function selectPerson(name) {
+  currentPerson = name;
+  renderPeoplePage();
+}
+
+function toggleConfRow(i, row) {
+  const drill = document.getElementById('drill-' + i);
+  const open = row.classList.toggle('open');
+  drill.style.display = open ? 'table-row' : 'none';
+  const arrow = row.querySelector('span[style*="font-size:9px"]');
+  if (arrow) arrow.textContent = open ? '▴' : '▾';
+}
+
+function toggleConf(id) {
+  const item = document.getElementById(id);
+  const cats = item.querySelector('.conf-cats');
+  const open = item.classList.toggle('open');
+  cats.style.display = open ? 'flex' : 'none';
+  if (open) cats.style.flexDirection = 'column';
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+loadData();
+</script>
+</body>
+</html>
