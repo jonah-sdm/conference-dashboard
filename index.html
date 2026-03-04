@@ -115,10 +115,12 @@ body::after {
 .kpi-val.w { color:var(--text); text-shadow:none; }
 .kpi-sub { font-size:10px; color:var(--t3); margin-top:8px; }
 
-/* LAYOUT */
-.layout { display:grid; grid-template-columns:1fr 290px; gap:14px; margin-bottom:14px; }
-.rc { display:flex; flex-direction:column; gap:12px; }
-.br { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+/* OVERVIEW LAYOUT */
+.ov-head { margin-bottom:22px; }
+.ov-layout { display:grid; grid-template-columns:220px 1fr; gap:16px; align-items:start; }
+.ov-sidebar { display:flex; flex-direction:column; gap:12px; position:sticky; top:72px; }
+.ov-main { display:flex; flex-direction:column; gap:14px; min-width:0; }
+.ov-bottom { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
 
 /* TABLE */
 table { width:100%; border-collapse:collapse; }
@@ -153,6 +155,11 @@ td.st { text-align:right; }
 .pc { font-size:10px; color:var(--t3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .pa { font-size:11.5px; font-weight:600; color:var(--t2); white-space:nowrap; }
 .pr-arrow { font-size:10px; color:var(--t3); flex-shrink:0; }
+.pr.pr-active { background:rgba(245,193,37,0.06); }
+.pr.pr-active .pn { color:var(--gold); }
+.ov-conf-view { display:flex; flex-direction:column; gap:14px; }
+.ov-back { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:600; color:var(--t3); background:none; border:none; cursor:pointer; padding:0 0 16px; transition:color 0.15s; letter-spacing:0.02em; }
+.ov-back:hover { color:var(--text); }
 
 /* Q SPLIT */
 .qs { display:grid; grid-template-columns:1fr 1fr; }
@@ -288,9 +295,9 @@ tr.conf-drill .drill-inner { padding:20px 24px; display:grid; grid-template-colu
   .kpi-val { font-size:22px; }
 
   /* LAYOUT — stack columns */
-  .layout { grid-template-columns:1fr; gap:12px; margin-bottom:12px; }
-  .br { grid-template-columns:1fr; gap:12px; }
-  .rc { gap:12px; }
+  .ov-layout { grid-template-columns:1fr; gap:12px; }
+  .ov-sidebar { position:static; }
+  .ov-bottom { grid-template-columns:1fr; gap:12px; }
 
   /* TABLE — hide less important columns, make it scannable */
   thead th.hide-mobile { display:none; }
@@ -456,7 +463,6 @@ tr.conf-drill .drill-inner { padding:20px 24px; display:grid; grid-template-colu
     <span class="nav-period">H1 2026</span>
   </div>
   <div class="nav-tab active" onclick="showPage('overview',this)">Overview</div>
-  <div class="nav-tab" onclick="showPage('people',this)">People</div>
   <div class="nav-right">
     <span class="last-sync" id="last-sync"></span>
     <button class="sync-btn" onclick="loadData(true)" id="sync-btn">↻ Refresh</button>
@@ -465,17 +471,10 @@ tr.conf-drill .drill-inner { padding:20px 24px; display:grid; grid-template-colu
 
 <!-- PAGE: OVERVIEW -->
 <div id="page-overview" class="page active">
-  <div class="page-hero">
-    <div class="page-hero-left">
-      <div class="eyebrow">Secure Digital Markets · H1 2026 · Conference Planning</div>
-      <div class="h1">Conference <em>Budget</em></div>
-      <div class="meta" id="overview-meta">Loading...</div>
-    </div>
-    <div class="page-hero-right">
-      <div class="hero-stat" id="hero-stat-q1"><div class="hero-stat-lbl">Q1 2026</div><div class="hero-stat-val" id="hero-q1">—</div></div>
-      <div class="hero-stat-sep"></div>
-      <div class="hero-stat" id="hero-stat-q2"><div class="hero-stat-lbl">Q2 2026</div><div class="hero-stat-val" id="hero-q2">—</div></div>
-    </div>
+  <div class="ov-head">
+    <div class="eyebrow">Secure Digital Markets · H1 2026 · Conference Planning</div>
+    <div class="h1">Conference <em>Budget</em></div>
+    <div class="meta" id="overview-meta">Loading...</div>
   </div>
   <div class="kpi-row">
     <div class="kpi"><div class="kpi-lbl">Total H1 Budget</div><div class="kpi-val" id="kpi-total">—</div><div class="kpi-sub">All conferences combined</div></div>
@@ -483,60 +482,56 @@ tr.conf-drill .drill-inner { padding:20px 24px; display:grid; grid-template-colu
     <div class="kpi"><div class="kpi-lbl">Attendees</div><div class="kpi-val w" id="kpi-att">—</div><div class="kpi-sub" id="kpi-att-sub">Loading...</div></div>
     <div class="kpi"><div class="kpi-lbl">Avg Cost / Event</div><div class="kpi-val" id="kpi-avg">—</div><div class="kpi-sub">Across all conferences</div></div>
   </div>
-  <div class="layout">
-    <div class="card">
-      <div class="ch">
-        <div><span class="ch-accent"></span><div class="ch-lbl">All Conferences</div><div class="ch-title">Spend by Event — Ranked by Budget</div></div>
-        <span class="pill" id="conf-pill">— events</span>
-      </div>
-      <table>
-        <thead><tr><th>Conference</th><th class="hide-mobile">Location</th><th class="hide-mobile">Attendees</th><th class="r">Budget</th><th class="r">Actual</th><th>Notes</th></tr></thead>
-        <tbody id="conf-table-body"></tbody>
-      </table>
-    </div>
-    <div class="rc">
+  <div class="ov-layout">
+    <!-- LEFT SIDEBAR -->
+    <div class="ov-sidebar">
       <div class="card">
-        <div class="ch"><div><span class="ch-accent"></span><div class="ch-lbl">Budget by Person</div><div class="ch-title">Click to see profile →</div></div></div>
+        <div class="ch"><div><span class="ch-accent"></span><div class="ch-lbl">Team</div><div class="ch-title">Budget by Person</div></div></div>
         <div id="people-list"></div>
       </div>
       <div class="card">
-        <div class="ch"><div><span class="ch-accent"></span><div class="ch-lbl">Quarter Split</div><div class="ch-title">Q1 vs Q2 Budget</div></div></div>
+        <div class="ch"><div><span class="ch-accent"></span><div class="ch-lbl">Quarter Split</div><div class="ch-title">Q1 vs Q2</div></div></div>
         <div class="qs">
           <div class="qc"><div class="ql">Q1 2026</div><div class="qv" id="q1-total">—</div><div class="qs2" id="q1-pct">—</div></div>
           <div class="qc"><div class="ql">Q2 2026</div><div class="qv" id="q2-total">—</div><div class="qs2" id="q2-pct">—</div></div>
         </div>
       </div>
     </div>
-  </div>
-  <div class="br">
-    <div class="card">
-      <div class="ch"><div><span class="ch-accent"></span><div class="ch-lbl">Spend Breakdown</div><div class="ch-title">Budget by Category</div></div></div>
-      <div class="catlist" id="cat-breakdown"></div>
-    </div>
-    <div class="card">
-      <div class="ch">
-        <div><span class="ch-accent"></span><div class="ch-lbl">Post-Event Tracking</div><div class="ch-title">Budget vs. Actual</div></div>
-        <span class="pill" id="actuals-pill">0 completed</span>
+    <!-- RIGHT MAIN -->
+    <div class="ov-main">
+      <div id="ov-conf-view" class="ov-conf-view">
+        <div class="card">
+          <div class="ch">
+            <div><span class="ch-accent"></span><div class="ch-lbl">All Conferences</div><div class="ch-title">Spend by Event — Ranked by Budget</div></div>
+            <span class="pill" id="conf-pill">— events</span>
+          </div>
+          <table>
+            <thead><tr><th>Conference</th><th class="hide-mobile">Location</th><th class="hide-mobile">Attendees</th><th class="r">Budget</th><th class="r">Actual</th><th>Notes</th></tr></thead>
+            <tbody id="conf-table-body"></tbody>
+          </table>
+        </div>
+        <div class="ov-bottom">
+          <div class="card">
+            <div class="ch"><div><span class="ch-accent"></span><div class="ch-lbl">Spend Breakdown</div><div class="ch-title">Budget by Category</div></div></div>
+            <div class="catlist" id="cat-breakdown"></div>
+          </div>
+          <div class="card">
+            <div class="ch">
+              <div><span class="ch-accent"></span><div class="ch-lbl">Post-Event Tracking</div><div class="ch-title">Budget vs. Actual</div></div>
+              <span class="pill" id="actuals-pill">0 completed</span>
+            </div>
+            <div id="actuals-content"></div>
+          </div>
+        </div>
       </div>
-      <div id="actuals-content"></div>
+      <div id="ov-profile-view" style="display:none">
+        <button class="ov-back" onclick="showConferences()">← All Conferences</button>
+        <div id="profile-panel" class="profile-panel"></div>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- PAGE: PEOPLE -->
-<div id="page-people" class="page">
-  <div class="page-hero">
-    <div class="page-hero-left">
-      <div class="eyebrow">SDM Capital · Team</div>
-      <div class="h1">People <em>Profiles</em></div>
-      <div class="meta">Per-person budget breakdown · Click a conference to expand categories</div>
-    </div>
-  </div>
-  <div class="people-layout">
-    <div class="people-sidebar" id="people-sidebar"></div>
-    <div id="profile-panel" class="profile-panel"></div>
-  </div>
-</div>
 
 <!-- COMMENTS SLIDE PANEL -->
 <div class="cpanel" id="cpanel">
@@ -945,8 +940,6 @@ function renderAll() {
   const q2 = confs.filter(c => c['Quarter'] === 'Q2').reduce((s,c) => s + (Number(c['Total Budgeted'])||0), 0);
   document.getElementById('q1-total').textContent = fmt(q1);
   document.getElementById('q2-total').textContent = fmt(q2);
-  document.getElementById('hero-q1').textContent  = fmt(q1);
-  document.getElementById('hero-q2').textContent  = fmt(q2);
   document.getElementById('q1-pct').textContent   = pct(q1, totalBudget) + ' of total';
   document.getElementById('q2-pct').textContent   = pct(q2, totalBudget) + ' of total';
 
@@ -1004,7 +997,7 @@ function renderAll() {
         </div>
         <div style="flex:1"></div>
         <div class="drill-person-amt">${fmt(amt)}</div>
-        <div style="margin-left:10px;cursor:pointer;font-size:9px;color:var(--t3)" onclick="event.stopPropagation();goToPerson('${name}')">Profile →</div>
+        <div style="margin-left:10px;cursor:pointer;font-size:9px;color:var(--t3)" onclick="event.stopPropagation();selectPerson('${name}')">Profile →</div>
       </div>`;
     }).join('');
 
@@ -1064,7 +1057,7 @@ function renderAll() {
     const meta   = PERSON_META[name] || { initials: initials(name), base: '—' };
     const evCount = new Set(expenses.filter(e => e['Attendee'] === name).map(e => e['Conference'])).size;
     const pc = personColor(name);
-    return `<div class="pr" onclick="goToPerson('${name}')">
+    return `<div class="pr" data-person="${name}" onclick="selectPerson('${name}')">
       <div class="av" style="background:${pc.bg};border-color:${pc.border};color:${pc.text}">${meta.initials}</div>
       <div class="pi">
         <div class="pn">${name}</div>
@@ -1125,40 +1118,9 @@ function renderAll() {
     document.getElementById('actuals-content').innerHTML = actHeader + actRows;
   }
 
-  // People page
-  if (!currentPerson && sortedPeople.length) currentPerson = sortedPeople[0][0];
-  renderPeoplePage();
 }
 
 // ── PEOPLE PAGE ───────────────────────────────────────────────────────────
-function renderPeoplePage() {
-  const expenses = DATA.expenses;
-  const personBudgets = {};
-  expenses.forEach(e => {
-    const att = e['Attendee'];
-    if (att) personBudgets[att] = (personBudgets[att] || 0) + (Number(e['Budgeted Amount']) || 0);
-  });
-  const sortedPeople = Object.entries(personBudgets).sort((a,b) => b[1] - a[1]);
-
-  // Sidebar
-  document.getElementById('people-sidebar').innerHTML = sortedPeople.map(([name, bud]) => {
-    const meta = PERSON_META[name] || { initials: initials(name), base: '—' };
-    const active = name === currentPerson ? 'active' : '';
-    const pc = personColor(name);
-    const borderStyle = active ? `border-color:${pc.border};background:${pc.bg}` : '';
-    return `<div class="person-card ${active}" onclick="selectPerson('${name}')" style="${borderStyle}">
-      <div class="av-lg" style="background:${pc.bg};border-color:${pc.border};color:${pc.text}">${meta.initials}</div>
-      <div class="pc-info">
-        <div class="pc-name">${name}</div>
-        <div class="pc-base">📍 ${meta.base}</div>
-        <div class="pc-total" style="color:${pc.text}">${fmt(bud)}</div>
-      </div>
-      <div onclick="event.stopPropagation()">${commentBtn('PERSON::' + name)}</div>
-    </div>`;
-  }).join('');
-
-  renderProfile();
-}
 
 function renderProfile() {
   if (!currentPerson) return;
@@ -1340,40 +1302,24 @@ function showPage(id, el) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
   el.classList.add('active');
-  location.hash = id === 'overview' ? '' : id;
-}
-
-function goToPerson(name) {
-  currentPerson = name;
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('page-people').classList.add('active');
-  document.querySelectorAll('.nav-tab')[1].classList.add('active');
-  renderPeoplePage();
-  location.hash = 'people';
 }
 
 function selectPerson(name) {
   currentPerson = name;
-  renderPeoplePage();
+  document.getElementById('ov-conf-view').style.display = 'none';
+  document.getElementById('ov-profile-view').style.display = 'block';
+  document.querySelectorAll('#people-list .pr').forEach(el => {
+    el.classList.toggle('pr-active', el.dataset.person === name);
+  });
+  renderProfile();
 }
 
-// Handle browser back/forward via hash
-window.addEventListener('hashchange', () => {
-  const hash = location.hash.replace('#','');
-  if (hash === 'people') {
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-    document.getElementById('page-people').classList.add('active');
-    document.querySelectorAll('.nav-tab')[1].classList.add('active');
-    renderPeoplePage();
-  } else {
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-    document.getElementById('page-overview').classList.add('active');
-    document.querySelectorAll('.nav-tab')[0].classList.add('active');
-  }
-});
+function showConferences() {
+  currentPerson = null;
+  document.getElementById('ov-conf-view').style.display = '';
+  document.getElementById('ov-profile-view').style.display = 'none';
+  document.querySelectorAll('#people-list .pr').forEach(el => el.classList.remove('pr-active'));
+}
 
 function selectDrillPerson(name, confIdx) {
   // Hide all cat panels for this conference
@@ -1415,16 +1361,6 @@ function toggleConf(id) {
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────
-// Read hash on load to support direct links
-(function() {
-  const hash = location.hash.replace('#','');
-  if (hash === 'people') {
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-    document.getElementById('page-people').classList.add('active');
-    document.querySelectorAll('.nav-tab')[1].classList.add('active');
-  }
-})();
 
 loadData();
 </script>
