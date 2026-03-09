@@ -559,6 +559,10 @@ tr.conf-drill .drill-inner { padding:20px 24px; display:grid; grid-template-colu
 const SHEET_ID  = '1Q84Zrh1pGWRuZi9NP13TFL2QoDyMdhkJ8TTsYEJoj5s';
 const API_BASE  = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&headers=1&range=A4:Z500&sheet=`;
 
+// ── COMMENTS API ──────────────────────────────────────────────────────────
+// Deploy sdm_comment_sync.gs as a GAS Web App, paste the URL here:
+const COMMENTS_API = 'https://script.google.com/macros/s/AKfycbxbye1LmM6HLbT_o2a_Bm3nDJiqZ0rB_B9it-ayBVgqIX6BJbWl7T3mstgsMM-UPN06Fw/exec';
+
 const CAT_ICONS  = { 'Flights':'✈️','Hotel / Lodging':'🏨','Conference Ticket':'🎟️','Meals / Per Diem':'🍽️','Ground Transport':'🚕','Misc':'📦' };
 const CAT_COLORS = { 'Flights':'#3b82f6','Hotel / Lodging':'#a78bfa','Conference Ticket':'#F5C125','Meals / Per Diem':'#10b981','Ground Transport':'#fb923c','Misc':'#6b7280' };
 const PERSON_COLORS = {
@@ -582,10 +586,12 @@ const PERSON_META = {
   'Fred':    { initials:'FR', base:'Porto, Portugal',  role:'Payments',      note:'Porto-based — European conferences are low cost. UK events are a short flight. US and international stops carry full transatlantic premium.' },
 };
 
-// ── NOTES / THREADS ────────────────────────────────────────────────────────
+// ── NOTES / THREADS (synced to Google Sheets) ─────────────────────────────
 // Keys: CONF::name  |  PERSON::name
 // Thread model: { [key]: [{id, text, ts, resolved, replies:[{id, text, ts}]}] }
 const TSTORE = 'sdm_threads_v1';
+let _threadCache = {}; // in-memory cache, synced to/from backend
+let _syncBusy = false;
 let _cid = 0;
 const CKEYS = {};
 let _panelKey = null;
@@ -593,13 +599,75 @@ let _panelSlotId = null;
 let _panelView = 'list'; // 'list' | 'thread'
 let _panelThreadId = null;
 
-function allThreadData() { try { return JSON.parse(localStorage.getItem(TSTORE)||'{}'); } catch { return {}; } }
-function getThreads(key) { return allThreadData()[key] || []; }
+function allThreadData() { return _threadCache; }
+function getThreads(key) { return (_threadCache[key] || []).slice(); }
+
 function saveThreads(key, threads) {
-  const all = allThreadData();
-  if (threads.length) all[key] = threads; else delete all[key];
-  localStorage.setItem(TSTORE, JSON.stringify(all));
+  if (threads.length) _threadCache[key] = threads; else delete _threadCache[key];
+  // Persist to localStorage as fallback
+  try { localStorage.setItem(TSTORE, JSON.stringify(_threadCache)); } catch(e) {}
+  // Push to backend
+  syncPush();
 }
+
+// ── Backend sync ──────────────────────────────────────────────────────────
+let _pushTimer = null;
+function syncPush() {
+  if (!COMMENTS_API) return;
+  clearTimeout(_pushTimer);
+  _pushTimer = setTimeout(_doSyncPush, 500);
+}
+
+function _doSyncPush() {
+  if (!COMMENTS_API || _syncBusy) return;
+  _syncBusy = true;
+  fetch(COMMENTS_API, {
+    method: 'POST',
+    body: JSON.stringify(_threadCache),
+    redirect: 'follow'
+  }).then(function(res) {
+    _syncBusy = false;
+    return res.text();
+  }).then(function(text) {
+    try {
+      const r = JSON.parse(text);
+      if (r.error) console.warn('[Comments] push error:', r.error);
+    } catch(e) {}
+  }).catch(function(err) {
+    console.warn('[Comments] push failed:', err);
+    _syncBusy = false;
+  });
+}
+
+async function syncPull() {
+  if (!COMMENTS_API) return;
+  try {
+    const res = await fetch(COMMENTS_API);
+    const data = await res.json();
+    if (data && !data.error) {
+      _threadCache = data;
+      try { localStorage.setItem(TSTORE, JSON.stringify(_threadCache)); } catch(e) {}
+      // Refresh all visible dots
+      Object.entries(CKEYS).forEach(function(entry) {
+        refreshDot(entry[0]);
+      });
+      // If panel is open, re-render it
+      if (_panelKey) renderPanel();
+    }
+  } catch(err) {
+    console.warn('[Comments] pull failed:', err);
+  }
+}
+
+// Load from localStorage immediately for fast startup, then pull from backend
+(function() {
+  try { _threadCache = JSON.parse(localStorage.getItem(TSTORE) || '{}'); } catch(e) { _threadCache = {}; }
+  if (COMMENTS_API) {
+    setTimeout(syncPull, 1500);
+    setInterval(syncPull, 30000);
+  }
+})();
+
 function addThread(key, text) {
   const threads = getThreads(key);
   threads.push({ id: 't_' + Date.now() + '_' + Math.random().toString(36).slice(2), text: text.trim(), ts: Date.now(), resolved: false, replies: [] });
